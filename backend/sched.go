@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/ishidawataru/sctp"
+	"github.com/omec-project/ngap"
+	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/sctplb/context"
 	"github.com/omec-project/sctplb/logger"
 )
@@ -150,6 +152,21 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		logger.AppLog.Errorln("no backend available")
 		return
 	}
+
+	ueMsg, err := ngap.Decoder(msg)
+	if err != nil {
+		ran.Log.Errorf("NGAP decode error: %+v", err)
+		logger.SctpLog.Infoln("dispatchLb, decode message error")
+	}
+	if err == nil {
+		ngapID := extractUEIdentifier(ueMsg)
+		if ngapID != nil {
+			logger.SctpLog.Infof("FOUND NGAP ID: %v", ngapID)
+		} else {
+			logger.SctpLog.Infof("NGAP ID NOT FOUND FROM PDU")
+		}
+	}
+
 	var i int
 	for ; i < ctx.NFLength(); i++ {
 		// Select the backend NF based on RoundRobin Algorithm
