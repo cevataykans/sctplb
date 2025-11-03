@@ -12,7 +12,6 @@ import (
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/ngap"
-	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/sctplb/context"
 	"github.com/omec-project/sctplb/logger"
 )
