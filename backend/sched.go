@@ -189,8 +189,7 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		}
 		if !found {
 			logger.SctpLog.Infoln("Sticky session not found")
-		}
-		if !backend.State() {
+		} else {
 			logger.SctpLog.Infof("Backend state not available: %v", backend.State())
 		}
 	}
