@@ -173,16 +173,17 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 
 	// protected by ctx.lock, so safe to access map
 	if ngapID != nil {
-		key := fmt.Sprintf("%v_%v", *ran.RanId, ngapID)
+		key := fmt.Sprintf("%v_%v", getRanID(ran), ngapID)
+		logger.SctpLog.Infof("NGAPID not nil, trying to find sticky session with key %v", key)
 		backend, found := stickySessions[key]
 		if found && backend.State() {
-			logger.SctpLog.Infof("Saving key: %v for backend", key)
+			logger.SctpLog.Infof("Sending key: %v to the sticky backend", key)
 			if err := backend.Send(msg, false, ran); err != nil {
 				logger.SctpLog.Errorln("can not send:", err)
 			}
 			return
 		} else {
-			logger.SctpLog.Errorf("backend found: %v and backend state: %v\n", found, backend.State())
+			logger.SctpLog.Infof("Sticky session not found. backend found: %v and backend state: %v", found, backend.State())
 		}
 	}
 
@@ -190,17 +191,19 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 	for ; i < ctx.NFLength(); i++ {
 		// Select the backend NF based on RoundRobin Algorithm
 		backend := RoundRobin()
-		if backend.State() {
-			if err := backend.Send(msg, false, ran); err != nil {
-				logger.SctpLog.Errorln("can not send:", err)
-			}
-			if ngapID != nil {
-				key := fmt.Sprintf("%v_%v", *ran.RanId, ngapID)
-				logger.SctpLog.Infof("Saving key: %v for backend\n", key)
-				stickySessions[key] = backend
-			}
-			break
+		if !backend.State() {
+			continue
 		}
+
+		if err := backend.Send(msg, false, ran); err != nil {
+			logger.SctpLog.Errorln("can not send:", err)
+		}
+		if ngapID != nil {
+			key := fmt.Sprintf("%v_%v", getRanID(ran), ngapID)
+			logger.SctpLog.Infof("Saving key: %v for backend\n", key)
+			stickySessions[key] = backend
+		}
+		break
 	}
 }
 

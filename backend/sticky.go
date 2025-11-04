@@ -3,6 +3,7 @@ package backend
 import (
 	"github.com/omec-project/ngap/logger"
 	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/sctplb/context"
 )
 
 //type stickySession struct {
@@ -13,6 +14,14 @@ import (
 var (
 	stickySessions = make(map[string]Backend)
 )
+
+func getRanID(ran *context.Ran) string {
+	id := ran.RanID()
+	if id == "" {
+		id = ran.GnbIp
+	}
+	return id
+}
 
 func extractUEIdentifier(ranMsg *ngapType.NGAPPDU) *ngapType.RANUENGAPID {
 	var rANUENGAPID *ngapType.RANUENGAPID
