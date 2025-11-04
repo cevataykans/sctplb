@@ -161,6 +161,10 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		logger.SctpLog.Infoln("dispatchLb, decode message error")
 	}
 
+	if stickySessions == nil {
+		logger.SctpLog.Errorln(fmt.Errorf("stickySessions is nil"))
+	}
+
 	var ngapID *ngapType.RANUENGAPID = nil
 	if err == nil {
 		ngapID = extractUEIdentifier(ueMsg)

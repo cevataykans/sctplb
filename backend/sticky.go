@@ -6,14 +6,13 @@ import (
 	"github.com/omec-project/sctplb/context"
 )
 
-//type stickySession struct {
-//	ueId  int64
-//	ranId int64
-//}
-
 var (
-	stickySessions = make(map[string]Backend)
+	stickySessions map[string]Backend
 )
+
+func init() {
+	stickySessions = make(map[string]Backend)
+}
 
 func getRanID(ran *context.Ran) string {
 	id := ran.RanID()
