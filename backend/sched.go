@@ -152,6 +152,7 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
+	ran.Log.Infoln("Trying to decode the message ...")
 	ueMsg, err := ngap.Decoder(msg)
 	if err != nil {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
