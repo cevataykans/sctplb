@@ -186,8 +186,12 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 				logger.SctpLog.Errorln("can not send:", err)
 			}
 			return
-		} else {
-			logger.SctpLog.Infof("Sticky session not found. backend found: %v and backend state: %v", found, backend.State())
+		}
+		if !found {
+			logger.SctpLog.Infoln("Sticky session not found")
+		}
+		if !backend.State() {
+			logger.SctpLog.Infof("Backend state not available: %v", backend.State())
 		}
 	}
 
