@@ -5,6 +5,15 @@ import (
 	"github.com/omec-project/ngap/ngapType"
 )
 
+//type stickySession struct {
+//	ueId  int64
+//	ranId int64
+//}
+
+var (
+	stickySessions = make(map[string]Backend)
+)
+
 func extractUEIdentifier(ranMsg *ngapType.NGAPPDU) *ngapType.RANUENGAPID {
 	var rANUENGAPID *ngapType.RANUENGAPID
 
@@ -179,202 +188,154 @@ func extractUEIdentifier(ranMsg *ngapType.NGAPPDU) *ngapType.RANUENGAPID {
 		}
 
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
-		logger.NgapLog.Infoln("ngapType.NGAPPDUPresentSuccessfulOutcome received for registration procedure")
-		return nil
-		//successfulOutcome := ranMsg.SuccessfulOutcome
-		//if successfulOutcome == nil {
-		//	logger.NgapLog.Errorln("successfulOutcome is nil")
-		//	return nil
-		//}
-		//
-		//switch successfulOutcome.ProcedureCode.Value {
-		//case ngapType.ProcedureCodeNGReset:
-		//case ngapType.ProcedureCodeUEContextRelease:
-		//	ngapMsg := successfulOutcome.Value.UEContextReleaseComplete
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//			logger.NgapLog.Debugln("decode IE AmfUeNgapID")
-		//			if aMFUENGAPID == nil {
-		//				logger.NgapLog.Errorln("AMFUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		}
-		//	}
-		//	ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodePDUSessionResourceRelease:
-		//	ngapMsg := successfulOutcome.Value.PDUSessionResourceReleaseResponse
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodeUERadioCapabilityCheck:
-		//case ngapType.ProcedureCodeAMFConfigurationUpdate:
-		//case ngapType.ProcedureCodeInitialContextSetup:
-		//	ngapMsg := successfulOutcome.Value.InitialContextSetupResponse
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodeUEContextModification:
-		//	ngapMsg := successfulOutcome.Value.UEContextModificationResponse
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodePDUSessionResourceSetup:
-		//	ngapMsg := successfulOutcome.Value.PDUSessionResourceSetupResponse
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodePDUSessionResourceModify:
-		//	ngapMsg := successfulOutcome.Value.PDUSessionResourceModifyResponse
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodeHandoverResourceAllocation:
-		//	ngapMsg := successfulOutcome.Value.HandoverRequestAcknowledge
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//			logger.NgapLog.Debugln("decode IE AmfUeNgapID")
-		//			if aMFUENGAPID == nil {
-		//				logger.NgapLog.Errorln("AMFUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		}
-		//	}
-		//	ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
-		//}
+		successfulOutcome := ranMsg.SuccessfulOutcome
+		if successfulOutcome == nil {
+			logger.NgapLog.Errorln("successfulOutcome is nil")
+			return nil
+		}
+
+		switch successfulOutcome.ProcedureCode.Value {
+		case ngapType.ProcedureCodeNGReset:
+		case ngapType.ProcedureCodeUEContextRelease:
+			ngapMsg := successfulOutcome.Value.UEContextReleaseComplete
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodePDUSessionResourceRelease:
+			ngapMsg := successfulOutcome.Value.PDUSessionResourceReleaseResponse
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodeUERadioCapabilityCheck:
+		case ngapType.ProcedureCodeAMFConfigurationUpdate:
+		case ngapType.ProcedureCodeInitialContextSetup:
+			ngapMsg := successfulOutcome.Value.InitialContextSetupResponse
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodeUEContextModification:
+			ngapMsg := successfulOutcome.Value.UEContextModificationResponse
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodePDUSessionResourceSetup:
+			ngapMsg := successfulOutcome.Value.PDUSessionResourceSetupResponse
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodePDUSessionResourceModify:
+			ngapMsg := successfulOutcome.Value.PDUSessionResourceModifyResponse
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodeHandoverResourceAllocation:
+			ngapMsg := successfulOutcome.Value.HandoverRequestAcknowledge
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+		}
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		logger.NgapLog.Infoln("ngapType.NGAPPDUPresentUnsuccessfulOutcome received for registration procedure")
-		return nil
-		//unsuccessfulOutcome := message.UnsuccessfulOutcome
-		//if unsuccessfulOutcome == nil {
-		//	logger.NgapLog.Errorln("unsuccessfulOutcome is nil")
-		//	return nil, nil
-		//}
-		//switch unsuccessfulOutcome.ProcedureCode.Value {
-		//case ngapType.ProcedureCodeAMFConfigurationUpdate:
-		//case ngapType.ProcedureCodeInitialContextSetup:
-		//	ngapMsg := unsuccessfulOutcome.Value.InitialContextSetupFailure
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodeUEContextModification:
-		//	ngapMsg := unsuccessfulOutcome.Value.UEContextModificationFailure
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDRANUENGAPID:
-		//			rANUENGAPID = ie.Value.RANUENGAPID
-		//			logger.NgapLog.Debugln("decode IE RanUeNgapID")
-		//			if rANUENGAPID == nil {
-		//				logger.NgapLog.Errorln("RANUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//		}
-		//	}
-		//	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-		//
-		//case ngapType.ProcedureCodeHandoverResourceAllocation:
-		//	ngapMsg := unsuccessfulOutcome.Value.HandoverFailure
-		//	for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-		//		ie := ngapMsg.ProtocolIEs.List[i]
-		//		switch ie.Id.Value {
-		//		case ngapType.ProtocolIEIDAMFUENGAPID:
-		//			aMFUENGAPID = ie.Value.AMFUENGAPID
-		//			logger.NgapLog.Debugln("decode IE AmfUeNgapID")
-		//			if aMFUENGAPID == nil {
-		//				logger.NgapLog.Errorln("AMFUENGAPID is nil")
-		//				return nil, nil
-		//			}
-		//		}
-		//	}
-		//	ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
-		//}
+		unsuccessfulOutcome := ranMsg.UnsuccessfulOutcome
+		if unsuccessfulOutcome == nil {
+			logger.NgapLog.Errorln("unsuccessfulOutcome is nil")
+			return nil
+		}
+
+		switch unsuccessfulOutcome.ProcedureCode.Value {
+		case ngapType.ProcedureCodeAMFConfigurationUpdate:
+		case ngapType.ProcedureCodeInitialContextSetup:
+			ngapMsg := unsuccessfulOutcome.Value.InitialContextSetupFailure
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodeUEContextModification:
+			ngapMsg := unsuccessfulOutcome.Value.UEContextModificationFailure
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				if ie.Id.Value == ngapType.ProtocolIEIDRANUENGAPID {
+					rANUENGAPID = ie.Value.RANUENGAPID
+					logger.NgapLog.Debugln("decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						logger.NgapLog.Errorln("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+
+		case ngapType.ProcedureCodeHandoverResourceAllocation:
+		}
 	}
 	return rANUENGAPID
 }

@@ -7,6 +7,8 @@ package backend
 
 import (
 	"encoding/binary"
+	"fmt"
+	"github.com/omec-project/ngap/ngapType"
 	"net"
 	"time"
 
@@ -158,12 +160,29 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
 		logger.SctpLog.Infoln("dispatchLb, decode message error")
 	}
+
+	var ngapID *ngapType.RANUENGAPID = nil
 	if err == nil {
-		ngapID := extractUEIdentifier(ueMsg)
+		ngapID = extractUEIdentifier(ueMsg)
 		if ngapID != nil {
 			logger.SctpLog.Infof("FOUND NGAP ID: %v", ngapID)
 		} else {
 			logger.SctpLog.Infof("NGAP ID NOT FOUND FROM PDU")
+		}
+	}
+
+	// protected by ctx.lock, so safe to access map
+	if ngapID != nil {
+		key := fmt.Sprintf("%v_%v", *ran.RanId, ngapID)
+		backend, found := stickySessions[key]
+		if found && backend.State() {
+			logger.SctpLog.Infof("Saving key: %v for backend", key)
+			if err := backend.Send(msg, false, ran); err != nil {
+				logger.SctpLog.Errorln("can not send:", err)
+			}
+			return
+		} else {
+			logger.SctpLog.Errorf("backend found: %v and backend state: %v\n", found, backend.State())
 		}
 	}
 
@@ -174,6 +193,11 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		if backend.State() {
 			if err := backend.Send(msg, false, ran); err != nil {
 				logger.SctpLog.Errorln("can not send:", err)
+			}
+			if ngapID != nil {
+				key := fmt.Sprintf("%v_%v", *ran.RanId, ngapID)
+				logger.SctpLog.Infof("Saving key: %v for backend\n", key)
+				stickySessions[key] = backend
 			}
 			break
 		}
