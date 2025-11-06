@@ -7,13 +7,10 @@ package backend
 
 import (
 	"encoding/binary"
-	"fmt"
-	"github.com/omec-project/ngap/ngapType"
 	"net"
 	"time"
 
 	"github.com/ishidawataru/sctp"
-	"github.com/omec-project/ngap"
 	"github.com/omec-project/sctplb/context"
 	"github.com/omec-project/sctplb/logger"
 )
@@ -154,45 +151,40 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
-	ran.Log.Infoln("Trying to decode the message ...")
-	ueMsg, err := ngap.Decoder(msg)
-	if err != nil {
-		ran.Log.Errorf("NGAP decode error: %+v", err)
-		logger.SctpLog.Infoln("dispatchLb, decode message error")
-	}
-
-	if stickySessions == nil {
-		logger.SctpLog.Errorln(fmt.Errorf("stickySessions is nil"))
-	}
-
-	var ngapID *ngapType.RANUENGAPID = nil
-	if err == nil {
-		ngapID = extractUEIdentifier(ueMsg)
-		if ngapID != nil {
-			logger.SctpLog.Infof("FOUND NGAP ID: %v", ngapID)
-		} else {
-			logger.SctpLog.Infof("NGAP ID NOT FOUND FROM PDU")
-		}
-	}
+	//ran.Log.Infoln("Trying to decode the message ...")
+	//ueMsg, err := ngap.Decoder(msg)
+	//if err != nil {
+	//	ran.Log.Errorf("NGAP decode error: %+v", err)
+	//	logger.SctpLog.Infoln("dispatchLb, decode message error")
+	//}
+	//
+	//if stickySessions == nil {
+	//	logger.SctpLog.Errorln(fmt.Errorf("stickySessions is nil"))
+	//}
+	//
+	//var ngapID *ngapType.RANUENGAPID = nil
+	//if err == nil {
+	//	ngapID = extractUEIdentifier(ueMsg)
+	//	if ngapID != nil {
+	//		logger.SctpLog.Infof("FOUND NGAP ID: %v", ngapID)
+	//	} else {
+	//		logger.SctpLog.Infof("NGAP ID NOT FOUND FROM PDU")
+	//	}
+	//}
 
 	// protected by ctx.lock, so safe to access map
-	if ngapID != nil {
-		key := fmt.Sprintf("%v_%v", getRanID(ran), ngapID)
-		logger.SctpLog.Infof("NGAPID not nil, trying to find sticky session with key %v", key)
-		backend, found := stickySessions[key]
-		if found && backend.State() {
-			logger.SctpLog.Infof("Sending key: %v to the sticky backend", key)
-			if err := backend.Send(msg, false, ran); err != nil {
-				logger.SctpLog.Errorln("can not send:", err)
-			}
-			return
-		}
-		if !found {
-			logger.SctpLog.Infoln("Sticky session not found")
-		} else {
-			logger.SctpLog.Infof("Backend state not available: %v", backend.State())
-		}
-	}
+	//if ngapID != nil {
+	//	key := fmt.Sprintf("%v_%v", getRanID(ran), ngapID)
+	//	logger.SctpLog.Infof("NGAPID not nil, trying to find sticky session with key %v", key)
+	//	backend, found := stickySessions[key]
+	//	if found && backend.State() {
+	//		logger.SctpLog.Infof("Sending key: %v to the sticky backend", key)
+	//		if err := backend.Send(msg, false, ran); err != nil {
+	//			logger.SctpLog.Errorln("can not send:", err)
+	//			delete(stickySessions, key)
+	//		}
+	//	}
+	//}
 
 	var i int
 	for ; i < ctx.NFLength(); i++ {
@@ -202,13 +194,9 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 			continue
 		}
 
-		if err := backend.Send(msg, false, ran); err != nil {
+		err := backend.Send(msg, false, ran)
+		if err != nil {
 			logger.SctpLog.Errorln("can not send:", err)
-		}
-		if ngapID != nil {
-			key := fmt.Sprintf("%v_%v", getRanID(ran), ngapID)
-			logger.SctpLog.Infof("Saving key: %v for backend\n", key)
-			stickySessions[key] = backend
 		}
 		break
 	}
