@@ -9,14 +9,18 @@ import (
 )
 
 var (
-	stickySessions map[string]Backend
+	drsmClient drsm.DrsmInterface
 )
 
 func init() {
-	stickySessions = make(map[string]Backend)
+	var err error = nil
+	drsmClient, err = initDrsmReadonly()
+	if err != nil {
+		panic(err)
+	}
 }
 
-func InitDrsmReadonly() (drsm.DrsmInterface, error) {
+func initDrsmReadonly() (drsm.DrsmInterface, error) {
 	podname := os.Getenv("HOSTNAME")
 	podip := os.Getenv("POD_IP")
 

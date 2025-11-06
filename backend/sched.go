@@ -7,6 +7,8 @@ package backend
 
 import (
 	"encoding/binary"
+	"github.com/omec-project/ngap"
+	"github.com/omec-project/ngap/ngapType"
 	"net"
 	"time"
 
@@ -151,54 +153,37 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
-	//ran.Log.Infoln("Trying to decode the message ...")
-	//ueMsg, err := ngap.Decoder(msg)
-	//if err != nil {
-	//	ran.Log.Errorf("NGAP decode error: %+v", err)
-	//	logger.SctpLog.Infoln("dispatchLb, decode message error")
-	//}
-	//
-	//if stickySessions == nil {
-	//	logger.SctpLog.Errorln(fmt.Errorf("stickySessions is nil"))
-	//}
-	//
-	//var ngapID *ngapType.RANUENGAPID = nil
-	//if err == nil {
-	//	ngapID = extractUEIdentifier(ueMsg)
-	//	if ngapID != nil {
-	//		logger.SctpLog.Infof("FOUND NGAP ID: %v", ngapID)
-	//	} else {
-	//		logger.SctpLog.Infof("NGAP ID NOT FOUND FROM PDU")
-	//	}
-	//}
+	var ngapId *ngapType.AMFUENGAPID = nil
+	ngapMsg, err := ngap.Decoder(msg)
+	if err != nil {
+		ran.Log.Errorf("NGAP decode error: %+v", err)
+		logger.SctpLog.Infoln("dispatchLb, decode message error")
+	} else {
+		ngapId = ExtractAMFUENGAPID(ngapMsg)
+	}
 
-	// protected by ctx.lock, so safe to access map
-	//if ngapID != nil {
-	//	key := fmt.Sprintf("%v_%v", getRanID(ran), ngapID)
-	//	logger.SctpLog.Infof("NGAPID not nil, trying to find sticky session with key %v", key)
-	//	backend, found := stickySessions[key]
-	//	if found && backend.State() {
-	//		logger.SctpLog.Infof("Sending key: %v to the sticky backend", key)
-	//		if err := backend.Send(msg, false, ran); err != nil {
-	//			logger.SctpLog.Errorln("can not send:", err)
-	//			delete(stickySessions, key)
-	//		}
-	//	}
-	//}
+	// protected by ctx.lock, so safe to access drsm module
+	backend, err := findBackendWithNGAPID(ctx, ngapId)
+	if err == nil {
+		// send msg to the returned backend
+		err = backend.Send(msg, false, ran)
+		if err == nil {
+			return
+		}
+		logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
+	}
 
+	// If DRSM fails or backend not found, try regular path
 	var i int
 	for ; i < ctx.NFLength(); i++ {
 		// Select the backend NF based on RoundRobin Algorithm
 		backend := RoundRobin()
-		if !backend.State() {
-			continue
+		if backend.State() {
+			if err := backend.Send(msg, false, ran); err != nil {
+				logger.SctpLog.Errorln("can not send:", err)
+			}
+			break
 		}
-
-		err := backend.Send(msg, false, ran)
-		if err != nil {
-			logger.SctpLog.Errorln("can not send:", err)
-		}
-		break
 	}
 }
 
