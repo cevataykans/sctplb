@@ -15,6 +15,7 @@ import (
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/ngap"
+	sctplbCtx "github.com/omec-project/sctplb/context"
 	"github.com/omec-project/sctplb/logger"
 )
 
@@ -205,6 +206,8 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 
 	defer func() {
 		connections.Delete(conn)
+		ranCtx := sctplbCtx.Sctplb_Self()
+		ranCtx.DeleteRan(conn)
 
 		// if AMF call Stop(), then conn.Close() will return EBADF because conn has been closed inside Stop()
 		if err := conn.Close(); err != nil && err != syscall.EBADF {
