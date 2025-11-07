@@ -19,6 +19,7 @@ func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGA
 	if id == nil {
 		return nil, fmt.Errorf("ngapId not found by DRSM")
 	}
+	logger.NgapLog.Infoln("Found backend with id:", id)
 
 	for _, instance := range ctx.Backends {
 		b1 := instance.(*GrpcServer)

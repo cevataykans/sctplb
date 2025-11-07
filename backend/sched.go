@@ -171,6 +171,8 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 			return
 		}
 		logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
+	} else {
+		logger.SctpLog.Errorln("drsm failed:", err)
 	}
 
 	// If DRSM fails or backend not found, try regular path
