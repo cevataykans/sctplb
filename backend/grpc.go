@@ -134,6 +134,7 @@ func (b *GrpcServer) readFromServer() {
 					_, err := ran.Conn.Write(response.Msg)
 					if err != nil {
 						logger.RanLog.Infof("err %+v", err)
+						logger.RanLog.Infoln("Ran context: ", *ran)
 					}
 				} else {
 					logger.RanLog.Infof("couldn't fetch sctp connection with GnbId: %v", response.GnbId)

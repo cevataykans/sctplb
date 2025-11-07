@@ -153,8 +153,10 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
+	buf := [readBufSize]byte{}
 	var ngapId *ngapType.AMFUENGAPID = nil
-	ngapMsg, err := ngap.Decoder(msg)
+	copy(buf[0:readBufSize], msg[0:readBufSize])
+	ngapMsg, err := ngap.Decoder(buf[:])
 	if err != nil {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
 		logger.SctpLog.Infoln("dispatchLb, decode message error")
@@ -163,10 +165,10 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 	}
 
 	// protected by ctx.lock, so safe to access drsm module
-	backend, err := findBackendWithNGAPID(ctx, ngapId)
+	drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
 	if err == nil {
 		// send msg to the returned backend
-		err = backend.Send(msg, false, ran)
+		err = drsmBackend.Send(msg, false, ran)
 		if err == nil {
 			return
 		}
