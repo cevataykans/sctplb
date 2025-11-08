@@ -153,10 +153,8 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
-	buf := [readBufSize]byte{}
 	var ngapId *ngapType.AMFUENGAPID = nil
-	copy(buf[0:readBufSize], msg[0:readBufSize])
-	ngapMsg, err := ngap.Decoder(buf[:])
+	ngapMsg, err := ngap.Decoder(msg)
 	if err != nil {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
 		logger.SctpLog.Infoln("dispatchLb, decode message error")
