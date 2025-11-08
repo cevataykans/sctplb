@@ -104,7 +104,7 @@ func deleteBackendNF(b context.NF) {
 	}
 }
 
-func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
+func dispatchMessage(conn *sctp.SCTPConn, msg []byte, buf [readBufSize]byte) {
 	// add this message for one of the client
 	// select server who can handle this message.. round robin
 	// add message in the server queue
@@ -151,23 +151,9 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
-	start := time.Now()
-	//if found := getCachedBackend(msg); found != nil {
-	//	logger.AppLog.Infoln("backend is found in the cache")
-	//}
-	res1, ok1 := testMsgDecryption(msg[:])
-	end := time.Now()
-	logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
-
-	start = time.Now()
-	//if found := getCachedBackend(msg); found != nil {
-	//	logger.AppLog.Infoln("backend is found in the cache")
-	//}
-	res2, ok2 := testMsgDecryption(msg[:])
-	end = time.Now()
-	logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
-	if res1 != res2 && ok1 != ok2 {
-		logger.AppLog.Infof("First decode res: %v ok: %v Second decode res: %v ok: %v", res1, ok1, res2, ok2)
+	copy(buf[:len(msg)], msg[:])
+	if found := getCachedBackend(buf[:len(msg)]); found != nil {
+		logger.AppLog.Infoln("backend is found in the cache")
 	}
 
 	// protected by ctx.lock, so safe to access drsm module

@@ -20,7 +20,7 @@ import (
 )
 
 type SCTPHandler struct {
-	HandleMessage      func(conn *sctp.SCTPConn, msg []byte)
+	HandleMessage      func(conn *sctp.SCTPConn, msg []byte, buf [readBufSize]byte)
 	HandleNotification func(conn *sctp.SCTPConn, notificationData []byte)
 }
 
@@ -203,6 +203,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 	wg.Add(1)
 	defer wg.Done()
 	buf := make([]byte, bufsize)
+	readBuf := [readBufSize]byte{}
 
 	defer func() {
 		connections.Delete(conn)
@@ -277,7 +278,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 			logger.SctpLog.Debugf("read %d bytes", n)
 			logger.SctpLog.Debugf("packet content: %+v", hex.Dump(buf[:n]))
 
-			handler.HandleMessage(conn, buf[:n])
+			handler.HandleMessage(conn, buf[:n], readBuf)
 		}
 	}
 }

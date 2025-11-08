@@ -7,15 +7,13 @@ package backend
 import (
 	ctxt "context"
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/omec-project/sctplb/context"
 	"github.com/omec-project/sctplb/logger"
 	gClient "github.com/omec-project/sctplb/sdcoreAmfServer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+	"os"
 )
 
 func (b *GrpcServer) ConnectToServer(port int) {
@@ -109,25 +107,6 @@ func (b *GrpcServer) readFromServer() {
 							}
 							logger.GrpcLog.Infoln("successfully forwarded msg to correct AMF")
 							found = true
-
-							start := time.Now()
-							//if found := getCachedBackend(msg); found != nil {
-							//	logger.AppLog.Infoln("backend is found in the cache")
-							//}
-							res1, ok1 := testMsgDecryption(response.Msg)
-							end := time.Now()
-							logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
-
-							start = time.Now()
-							//if found := getCachedBackend(msg); found != nil {
-							//	logger.AppLog.Infoln("backend is found in the cache")
-							//}
-							res2, ok2 := testMsgDecryption(response.Msg)
-							end = time.Now()
-							logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
-							if res1 != res2 && ok1 != ok2 {
-								logger.AppLog.Infof("First decode res: %v ok: %v Second decode res: %v ok: %v", res1, ok1, res2, ok2)
-							}
 						}
 						break
 					}
