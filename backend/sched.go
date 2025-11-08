@@ -7,8 +7,6 @@ package backend
 
 import (
 	"encoding/binary"
-	"github.com/omec-project/ngap"
-	"github.com/omec-project/ngap/ngapType"
 	"net"
 	"time"
 
@@ -153,27 +151,22 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
-	var ngapId *ngapType.AMFUENGAPID = nil
-	ngapMsg, err := ngap.Decoder(msg)
-	if err != nil {
-		ran.Log.Errorf("NGAP decode error: %+v", err)
-		logger.SctpLog.Infoln("dispatchLb, decode message error")
-	} else {
-		ngapId = ExtractAMFUENGAPID(ngapMsg)
+	if found := getCachedBackend(msg); found != nil {
+		logger.AppLog.Infoln("backend is found in the cache")
 	}
 
 	// protected by ctx.lock, so safe to access drsm module
-	drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
-	if err == nil {
-		// send msg to the returned backend
-		err = drsmBackend.Send(msg, false, ran)
-		if err == nil {
-			return
-		}
-		logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
-	} else {
-		logger.SctpLog.Errorln("drsm failed:", err)
-	}
+	//drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
+	//if err == nil {
+	//	// send msg to the returned backend
+	//	err = drsmBackend.Send(msg, false, ran)
+	//	if err == nil {
+	//		return
+	//	}
+	//	logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
+	//} else {
+	//	logger.SctpLog.Errorln("drsm failed:", err)
+	//}
 
 	// If DRSM fails or backend not found, try regular path
 	var i int

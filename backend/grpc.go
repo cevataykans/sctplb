@@ -108,6 +108,8 @@ func (b *GrpcServer) readFromServer() {
 							}
 							logger.GrpcLog.Infoln("successfully forwarded msg to correct AMF")
 							found = true
+
+							cacheBackend(response.Msg, b1)
 						}
 						break
 					}
@@ -135,6 +137,8 @@ func (b *GrpcServer) readFromServer() {
 					if err != nil {
 						logger.RanLog.Infof("err %+v", err)
 						logger.RanLog.Infoln("Ran context: ", *ran)
+					} else {
+						cacheBackend(response.Msg, b)
 					}
 				} else {
 					logger.RanLog.Infof("couldn't fetch sctp connection with GnbId: %v", response.GnbId)

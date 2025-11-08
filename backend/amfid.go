@@ -38,7 +38,7 @@ func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGA
 }
 
 // Taken and adapted from ngap/handler.go
-func ExtractAMFUENGAPID(message *ngapType.NGAPPDU) *ngapType.AMFUENGAPID {
+func extractAMFUENGAPID(message *ngapType.NGAPPDU) *ngapType.AMFUENGAPID {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 
 	if message == nil {
