@@ -24,23 +24,25 @@ func addBackend(ngapId *ngapType.AMFUENGAPID, backend Backend) {
 	cacheMtx.Lock()
 	defer cacheMtx.Unlock()
 	cache[ngapId.Value] = backend
+	logger.AppLog.Infoln("Backend added to cache")
 }
 
 func cacheBackend(msg []byte, backend Backend) {
 	var ngapId *ngapType.AMFUENGAPID = nil
 	ngapMsg, err := ngap.Decoder(msg)
 	if err != nil {
+		logger.AppLog.Errorln("Cache cannot decode msg: ", err)
 		return
 	}
 	ngapId = extractAMFUENGAPID(ngapMsg)
 	addBackend(ngapId, backend)
-	logger.AppLog.Infoln("Backend added to cache")
 }
 
 func getCachedBackend(msg []byte) Backend {
 	var ngapId *ngapType.AMFUENGAPID = nil
 	ngapMsg, err := ngap.Decoder(msg)
 	if err != nil {
+		logger.AppLog.Errorln("Cache cannot decode msg: ", err)
 		return nil
 	}
 	ngapId = extractAMFUENGAPID(ngapMsg)
