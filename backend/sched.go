@@ -151,8 +151,23 @@ func dispatchMessage(conn *sctp.SCTPConn, msg []byte) {
 		return
 	}
 
-	if found := getCachedBackend(msg); found != nil {
-		logger.AppLog.Infoln("backend is found in the cache")
+	start := time.Now()
+	//if found := getCachedBackend(msg); found != nil {
+	//	logger.AppLog.Infoln("backend is found in the cache")
+	//}
+	res1, ok1 := testMsgDecryption(msg[:])
+	end := time.Now()
+	logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
+
+	start = time.Now()
+	//if found := getCachedBackend(msg); found != nil {
+	//	logger.AppLog.Infoln("backend is found in the cache")
+	//}
+	res2, ok2 := testMsgDecryption(msg[:])
+	end = time.Now()
+	logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
+	if res1 != res2 && ok1 != ok2 {
+		logger.AppLog.Infof("First decode res: %v ok: %v Second decode res: %v ok: %v", res1, ok1, res2, ok2)
 	}
 
 	// protected by ctx.lock, so safe to access drsm module

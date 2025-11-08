@@ -8,6 +8,7 @@ import (
 	ctxt "context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/omec-project/sctplb/context"
 	"github.com/omec-project/sctplb/logger"
@@ -109,7 +110,24 @@ func (b *GrpcServer) readFromServer() {
 							logger.GrpcLog.Infoln("successfully forwarded msg to correct AMF")
 							found = true
 
-							cacheBackend(response.Msg, b1)
+							start := time.Now()
+							//if found := getCachedBackend(msg); found != nil {
+							//	logger.AppLog.Infoln("backend is found in the cache")
+							//}
+							res1, ok1 := testMsgDecryption(response.Msg)
+							end := time.Now()
+							logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
+
+							start = time.Now()
+							//if found := getCachedBackend(msg); found != nil {
+							//	logger.AppLog.Infoln("backend is found in the cache")
+							//}
+							res2, ok2 := testMsgDecryption(response.Msg)
+							end = time.Now()
+							logger.AppLog.Infoln("Cache difference: ", end.Sub(start))
+							if res1 != res2 && ok1 != ok2 {
+								logger.AppLog.Infof("First decode res: %v ok: %v Second decode res: %v ok: %v", res1, ok1, res2, ok2)
+							}
 						}
 						break
 					}
@@ -138,7 +156,7 @@ func (b *GrpcServer) readFromServer() {
 						logger.RanLog.Infof("err %+v", err)
 						logger.RanLog.Infoln("Ran context: ", *ran)
 					} else {
-						cacheBackend(response.Msg, b)
+						//cacheBackend(response.Msg, b)
 					}
 				} else {
 					logger.RanLog.Infof("couldn't fetch sctp connection with GnbId: %v", response.GnbId)

@@ -54,3 +54,16 @@ func getCachedBackend(msg []byte) Backend {
 	defer cacheMtx.Unlock()
 	return cache[ngapId.Value]
 }
+
+func testMsgDecryption(msg []byte) (int64, bool) {
+	ngapMsg, err := ngap.Decoder(msg)
+	if err != nil {
+		logger.AppLog.Errorln("Cache cannot decode msg: ", err)
+		return -1, false
+	}
+	ngapId := extractAMFUENGAPID(ngapMsg)
+	if ngapId == nil {
+		return 0, true
+	}
+	return ngapId.Value, true
+}
