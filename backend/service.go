@@ -18,7 +18,7 @@ import (
 )
 
 type SCTPHandler struct {
-	HandleMessage      func(conn net.Conn, msg []byte)
+	HandleMessage      func(conn net.Conn, msg []byte, buf []byte)
 	HandleNotification func(conn net.Conn, notification sctp.Notification)
 }
 
@@ -160,6 +160,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 
 	GnbConnChan := make(chan bool)
 
+	tmpBuf := make([]byte, bufsize)
 	go func() {
 		for {
 			buf := make([]byte, bufsize)
@@ -202,7 +203,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 				logger.SctpLog.Debugf("read %d bytes", n)
 				logger.SctpLog.Debugf("packet content: %+v", hex.Dump(buf[:n]))
 
-				handler.HandleMessage(conn, buf[:n])
+				handler.HandleMessage(conn, buf[:n], tmpBuf[:n])
 			}
 		}
 	}()
@@ -210,7 +211,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 	for x := range GnbConnChan {
 		logger.SctpLog.Infoln("closing gnb Connection:", x)
 		buf := make([]byte, bufsize)
-		handler.HandleMessage(conn, buf[:0])
+		handler.HandleMessage(conn, buf[:0], nil)
 		return
 	}
 }

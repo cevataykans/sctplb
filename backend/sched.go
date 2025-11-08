@@ -102,7 +102,7 @@ func deleteBackendNF(b context.NF) {
 	}
 }
 
-func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
+func dispatchMessage(conn net.Conn, msg []byte, buf []byte) { //*gClient.Message) {
 	// add this message for one of the client
 	// select server who can handle this message.. round robin
 	// add message in the server queue
@@ -145,6 +145,12 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 		ran = context.Sctplb_Self().NewRan(conn)
 	}
 	logger.SctpLog.Infoln("message received from remoteAddr", conn.RemoteAddr().String())
+
+	copy(buf[:], msg[:])
+	if found := getCachedBackend(buf[:]); found != nil {
+		logger.AppLog.Infoln("backend is found in the cache")
+	}
+
 	if ctx.NFLength() == 0 {
 		logger.AppLog.Errorln("no backend available")
 		return
