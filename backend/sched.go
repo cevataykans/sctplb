@@ -146,10 +146,10 @@ func dispatchMessage(conn net.Conn, msg []byte, buf []byte) { //*gClient.Message
 	}
 	logger.SctpLog.Infoln("message received from remoteAddr", conn.RemoteAddr().String())
 
-	copy(buf[:], msg[:])
-	if found := getCachedBackend(buf[:]); found != nil {
-		logger.AppLog.Infoln("backend is found in the cache")
-	}
+	//copy(buf[:], msg[:])
+	//if found := getCachedBackend(buf[:]); found != nil {
+	//	logger.AppLog.Infoln("backend is found in the cache")
+	//}
 
 	if ctx.NFLength() == 0 {
 		logger.AppLog.Errorln("no backend available")
