@@ -6,6 +6,8 @@
 package backend
 
 import (
+	"github.com/omec-project/ngap"
+	"github.com/omec-project/ngap/ngapType"
 	"net"
 	"time"
 
@@ -150,6 +152,26 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 		logger.AppLog.Errorln("no backend available")
 		return
 	}
+
+	var ngapId *ngapType.AMFUENGAPID = nil
+	ngapMsg, err := ngap.Decoder(msg)
+	if err != nil {
+		ran.Log.Errorf("NGAP decode error: %+v", err)
+		logger.SctpLog.Infoln("dispatchLb, decode message error")
+	} else {
+		ngapId = extractAMFUENGAPID(ngapMsg)
+	}
+
+	drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
+	if err == nil {
+		// send msg to the returned backend
+		err = drsmBackend.Send(msg, false, ran)
+		if err != nil {
+			logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
+		}
+		return
+	}
+
 	var i int
 	for ; i < ctx.NFLength(); i++ {
 		// Select the backend NF based on RoundRobin Algorithm

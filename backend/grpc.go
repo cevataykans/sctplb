@@ -172,10 +172,8 @@ func (b *GrpcServer) connectionOnState() {
 
 func (b *GrpcServer) sendRoutine() {
 	for amfMsg := range b.sendChan {
-		//select {
-		//case <-b.closeChan:
-		//	return
-		//default:
+		// try caching here
+
 		t := gClient.SctplbMessage{}
 		t.SctplbId = os.Getenv("HOSTNAME")
 		t.Msgtype = gClient.MsgType_GNB_MSG
@@ -183,23 +181,21 @@ func (b *GrpcServer) sendRoutine() {
 		t.Msg = amfMsg.MsgByes
 
 		ran := amfMsg.Ran
-		if ran != nil && ran.RanId != nil {
+		if ran.RanId != nil {
 			t.GnbId = *ran.RanId
 		} else {
 			t.GnbIpAddr = ran.Conn.RemoteAddr().String()
 		}
+
 		if amfMsg.End {
 			t.VerboseMsg = "Bye From gNB Message !"
 			t.Msgtype = gClient.MsgType_GNB_DISC
-			if ran != nil && ran.RanId != nil {
-				t.GnbId = *ran.RanId
-			}
 		}
+
 		err := b.stream.Send(&t)
 		if err != nil {
 			logger.AppLog.Errorln("send to server error", err)
 		}
-		//}
 	}
 }
 
