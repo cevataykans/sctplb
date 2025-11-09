@@ -60,6 +60,10 @@ func ServiceRun(addresses []string, port int) {
 		Port:    port,
 	}
 
+	workerCount := 4
+	for i := 0; i < workerCount; i++ {
+		go worker()
+	}
 	go listenAndServe(addr, handler)
 }
 

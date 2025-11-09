@@ -50,7 +50,7 @@ func init() {
 	}
 }
 
-func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGAPID) (Backend, error) {
+func findBackendWithNGAPID(ngapId *ngapType.AMFUENGAPID) (Backend, error) {
 	if ngapId == nil {
 		return nil, fmt.Errorf("ngapId is nil")
 	}
@@ -64,6 +64,9 @@ func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGA
 	}
 	logger.NgapLog.Infoln("Found backend with id:", id)
 
+	ctx := context.Sctplb_Self()
+	ctx.Lock()
+	defer ctx.Unlock()
 	for _, instance := range ctx.Backends {
 		b1 := instance.(*GrpcServer)
 		// AMF sets RedirectID as PodIp

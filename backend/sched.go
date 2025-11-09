@@ -6,8 +6,6 @@
 package backend
 
 import (
-	"github.com/omec-project/ngap"
-	"github.com/omec-project/ngap/ngapType"
 	"net"
 	"time"
 
@@ -26,6 +24,8 @@ type Backend interface {
 // returns the backendNF using RoundRobin algorithm
 func RoundRobin() Backend {
 	ctx := context.Sctplb_Self()
+	ctx.Lock()
+	defer ctx.Unlock()
 	length := ctx.NFLength()
 
 	if length <= 0 {
@@ -113,21 +113,11 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 
 	// Implement rate limit per gNb here
 	// implement per site rate limit here
-	var peer *SctpConnections
-	p, ok := connections.Load(conn)
-	if !ok {
-		logger.SctpLog.Infoln("notification for unknown connection")
-		return
-	} else {
-		peer = p.(*SctpConnections)
-		logger.SctpLog.Infoln("handle SCTP Notification from peer", peer.address)
-	}
 	ctx := context.Sctplb_Self()
-	ctx.Lock()
-	defer ctx.Unlock()
 	ran, _ := ctx.RanFindByConn(conn)
 	if len(msg) == 0 {
-		logger.SctpLog.Infof("send Gnb connection [%v] close message to all AMF Instances", peer.address)
+		ctx.Lock()
+		defer ctx.Unlock()
 		if ctx.Backends != nil && ctx.NFLength() > 0 {
 			var i int
 			for ; i < ctx.NFLength(); i++ {
@@ -144,43 +134,15 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 		context.Sctplb_Self().DeleteRan(conn)
 		return
 	}
+
 	if ran == nil {
 		ran = context.Sctplb_Self().NewRan(conn)
 	}
 	logger.SctpLog.Infoln("message received from remoteAddr", conn.RemoteAddr().String())
-	if ctx.NFLength() == 0 {
-		logger.AppLog.Errorln("no backend available")
-		return
-	}
 
-	var ngapId *ngapType.AMFUENGAPID = nil
-	ngapMsg, err := ngap.Decoder(msg)
-	if err != nil {
-		ran.Log.Errorf("NGAP decode error: %+v", err)
-		logger.SctpLog.Infoln("dispatchLb, decode message error")
-	} else {
-		ngapId = extractAMFUENGAPID(ngapMsg)
-	}
-
-	drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
-	if err == nil {
-		// send msg to the returned backend
-		err = drsmBackend.Send(msg, false, ran)
-		if err != nil {
-			logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
-		}
-		return
-	}
-
-	var i int
-	for ; i < ctx.NFLength(); i++ {
-		// Select the backend NF based on RoundRobin Algorithm
-		backend := RoundRobin()
-		if backend.State() {
-			if err := backend.Send(msg, false, ran); err != nil {
-				logger.SctpLog.Errorln("can not send:", err)
-			}
-			break
-		}
+	// Worker thread
+	ranMsgs <- &task{
+		msg: msg,
+		ran: ran,
 	}
 }
