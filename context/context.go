@@ -114,6 +114,7 @@ type NF interface {
 	ConnectToServer(int)
 	Send([]byte, bool, *Ran) error
 	State() bool
+	Close()
 }
 
 func (context *SctplbContext) DeleteNF(target NF) {
@@ -122,6 +123,7 @@ func (context *SctplbContext) DeleteNF(target NF) {
 			sctplbContext.Backends[i] = sctplbContext.Backends[len(sctplbContext.Backends)-1]
 			sctplbContext.Backends = sctplbContext.Backends[:len(sctplbContext.Backends)-1]
 			nfNum--
+			instance.Close()
 			break
 		}
 	}

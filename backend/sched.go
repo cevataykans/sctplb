@@ -18,6 +18,7 @@ var next int
 type Backend interface {
 	State() bool
 	Send(msg []byte, b bool, ran *context.Ran) error
+	Close()
 }
 
 // returns the backendNF using RoundRobin algorithm

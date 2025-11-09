@@ -17,6 +17,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+func (b *GrpcServer) Close() {
+	close(b.closeChan)
+	close(b.sendChan)
+}
+
 func (b *GrpcServer) ConnectToServer(port int) {
 	target := fmt.Sprintf("%s:%d", b.address, port)
 
@@ -40,6 +45,8 @@ func (b *GrpcServer) ConnectToServer(port int) {
 	}
 
 	b.stream = stream
+	b.sendChan = make(chan *AMFMsg, 1024)
+	b.closeChan = make(chan struct{})
 	b.state = true
 	for {
 		// INIT message to new NF instance
@@ -74,6 +81,7 @@ func (b *GrpcServer) ConnectToServer(port int) {
 	if b.state {
 		go b.connectionOnState()
 		go b.readFromServer()
+		go b.sendRoutine()
 	}
 }
 
@@ -96,13 +104,18 @@ func (b *GrpcServer) readFromServer() {
 						if !b1.state {
 							logger.GrpcLog.Infoln("backend state is not in READY state, so not forwarding redirected Msg")
 						} else {
-							t := gClient.SctplbMessage{}
-							t.VerboseMsg = "Hello From gNB Message !"
-							t.Msgtype = gClient.MsgType_GNB_MSG
-							t.SctplbId = os.Getenv("HOSTNAME")
-							t.Msg = response.Msg
-							t.GnbId = response.GnbId
-							err := b1.stream.Send(&t)
+							ran, ok := ctx.RanFindByGnbId(response.GnbId)
+							if !ok {
+								logger.RanLog.Errorln("can not find any RAN with id", response.GnbId)
+							}
+							err = b1.Send(response.Msg, false, ran)
+							//t := gClient.SctplbMessage{}
+							//t.VerboseMsg = "Hello From gNB Message !"
+							//t.Msgtype = gClient.MsgType_GNB_MSG
+							//t.SctplbId = os.Getenv("HOSTNAME")
+							//t.Msg = response.Msg
+							//t.GnbId = response.GnbId
+							//err := b1.stream.Send(&t)
 							if err != nil {
 								logger.GrpcLog.Infoln("error forwarding msg")
 							}
@@ -157,30 +170,74 @@ func (b *GrpcServer) connectionOnState() {
 	}()
 }
 
-func (b *GrpcServer) Send(msg []byte, end bool, ran *context.Ran) error {
-	t := gClient.SctplbMessage{}
-	if end {
-		t.VerboseMsg = "Bye From gNB Message !"
-		t.Msgtype = gClient.MsgType_GNB_DISC
+func (b *GrpcServer) sendRoutine() {
+	for amfMsg := range b.sendChan {
+		//select {
+		//case <-b.closeChan:
+		//	return
+		//default:
+		t := gClient.SctplbMessage{}
 		t.SctplbId = os.Getenv("HOSTNAME")
-		if ran != nil && ran.RanId != nil {
-			t.GnbId = *ran.RanId
-		}
-		t.Msg = msg
-	} else {
-		t.VerboseMsg = "Hello From gNB Message !"
 		t.Msgtype = gClient.MsgType_GNB_MSG
-		t.SctplbId = os.Getenv("HOSTNAME")
-		// send GnbId to backendNF if exist
-		// GnbIp to backend ig GnbId is not exist, mostly this is for NGSetup Message
-		if ran.RanId != nil {
+		t.VerboseMsg = "Hello From gNB Message !"
+		t.Msg = amfMsg.MsgByes
+
+		ran := amfMsg.Ran
+		if ran != nil && ran.RanId != nil {
 			t.GnbId = *ran.RanId
 		} else {
 			t.GnbIpAddr = ran.Conn.RemoteAddr().String()
 		}
-		t.Msg = msg
+		if amfMsg.End {
+			t.VerboseMsg = "Bye From gNB Message !"
+			t.Msgtype = gClient.MsgType_GNB_DISC
+			if ran != nil && ran.RanId != nil {
+				t.GnbId = *ran.RanId
+			}
+		}
+		err := b.stream.Send(&t)
+		if err != nil {
+			logger.AppLog.Errorln("send to server error", err)
+		}
+		//}
 	}
-	return b.stream.Send(&t)
+}
+
+func (b *GrpcServer) Send(msg []byte, end bool, ran *context.Ran) error {
+	select {
+	case <-b.closeChan:
+		return fmt.Errorf("backend closed")
+	default:
+		b.sendChan <- &AMFMsg{
+			MsgByes: msg,
+			End:     end,
+			Ran:     ran,
+		}
+		return nil
+	}
+	//t := gClient.SctplbMessage{}
+	//if end {
+	//	t.VerboseMsg = "Bye From gNB Message !"
+	//	t.Msgtype = gClient.MsgType_GNB_DISC
+	//	t.SctplbId = os.Getenv("HOSTNAME")
+	//	if ran != nil && ran.RanId != nil {
+	//		t.GnbId = *ran.RanId
+	//	}
+	//	t.Msg = msg
+	//} else {
+	//	t.VerboseMsg = "Hello From gNB Message !"
+	//	t.Msgtype = gClient.MsgType_GNB_MSG
+	//	t.SctplbId = os.Getenv("HOSTNAME")
+	//	// send GnbId to backendNF if exist
+	//	// GnbIp to backend ig GnbId is not exist, mostly this is for NGSetup Message
+	//	if ran.RanId != nil {
+	//		t.GnbId = *ran.RanId
+	//	} else {
+	//		t.GnbIpAddr = ran.Conn.RemoteAddr().String()
+	//	}
+	//	t.Msg = msg
+	//}
+	//return b.stream.Send(&t)
 }
 
 func (b *GrpcServer) State() bool {
