@@ -8,7 +8,7 @@ VERSION                  ?= $(shell cat ./VERSION)
 
 ## Docker related
 DOCKER_REGISTRY          ?=
-DOCKER_REPOSITORY        ?=
+DOCKER_REPOSITORY        ?= cevataykans/
 DOCKER_TAG               ?= ${VERSION}
 DOCKER_IMAGENAME         := ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}${PROJECT_NAME}:${DOCKER_TAG}
 DOCKER_BUILDKIT          ?= 1
