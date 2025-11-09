@@ -11,6 +11,35 @@ import (
 
 var (
 	drsmClient drsm.DrsmInterface
+
+	initiatingMsgParsers = map[int64]func(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID{
+		ngapType.ProcedureCodeUplinkNASTransport:                 initialUeMsgUplinkNASTransport,
+		ngapType.ProcedureCodeHandoverCancel:                     initialUeMsgHandoverCancel,
+		ngapType.ProcedureCodeUEContextReleaseRequest:            initialUeMsgUEContextReleaseRequest,
+		ngapType.ProcedureCodeNASNonDeliveryIndication:           initialUeMsgNASNonDeliveryIndication,
+		ngapType.ProcedureCodeUERadioCapabilityInfoIndication:    initialUeMsgUERadioCapabilityInfoIndication,
+		ngapType.ProcedureCodeHandoverNotification:               initialUeMsgHandoverNotify,
+		ngapType.ProcedureCodeHandoverPreparation:                initialUeMsgHandoverRequired,
+		ngapType.ProcedureCodePDUSessionResourceNotify:           initialUeMsgPDUSessionResourceNotify,
+		ngapType.ProcedureCodePathSwitchRequest:                  initialUeMsgPathSwitchRequest,
+		ngapType.ProcedureCodePDUSessionResourceModifyIndication: initialUeMsgPDUSessionResourceModifyIndication,
+	}
+
+	successMsgParsers = map[int64]func(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID{
+		ngapType.ProcedureCodeInitialContextSetup:        successMsgInitialContextSetupResponse,
+		ngapType.ProcedureCodeUEContextModification:      successMsgUEContextModificationResponse,
+		ngapType.ProcedureCodePDUSessionResourceSetup:    successMsgPDUSessionResourceSetupResponse,
+		ngapType.ProcedureCodePDUSessionResourceModify:   successMsgPDUSessionResourceModifyResponse,
+		ngapType.ProcedureCodeHandoverResourceAllocation: successMsgHandoverRequestAcknowledge,
+		ngapType.ProcedureCodeUEContextRelease:           successMsgUEContextReleaseComplete,
+		ngapType.ProcedureCodePDUSessionResourceRelease:  successMsgPDUSessionResourceReleaseResponse,
+	}
+
+	unsuccessMsgParsers = map[int64]func(val *ngapType.UnsuccessfulOutcomeValue) *ngapType.AMFUENGAPID{
+		ngapType.ProcedureCodeInitialContextSetup:        unsuccessMsgInitialContextSetupFailure,
+		ngapType.ProcedureCodeUEContextModification:      unsuccessMsgUEContextModificationFailure,
+		ngapType.ProcedureCodeHandoverResourceAllocation: unsuccessMsgHandoverFailure,
+	}
 )
 
 func init() {
@@ -79,13 +108,12 @@ func initDrsmReadonly() (drsm.DrsmInterface, error) {
 
 // Taken and adapted from ngap/handler.go
 func extractAMFUENGAPID(message *ngapType.NGAPPDU) *ngapType.AMFUENGAPID {
-	var aMFUENGAPID *ngapType.AMFUENGAPID
-
 	if message == nil {
 		logger.NgapLog.Errorln("NGAP Message is nil")
 		return nil
 	}
 
+	var aMFUENGAPID *ngapType.AMFUENGAPID = nil
 	switch message.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := message.InitiatingMessage
@@ -93,227 +121,242 @@ func extractAMFUENGAPID(message *ngapType.NGAPPDU) *ngapType.AMFUENGAPID {
 			logger.NgapLog.Errorln("initiatingMessage is nil")
 			return nil
 		}
-		switch initiatingMessage.ProcedureCode.Value {
-		case ngapType.ProcedureCodeNGSetup:
-		case ngapType.ProcedureCodeInitialUEMessage:
-			// no references to the aMFUENGAPID which is required by the DRSM module.
-
-		case ngapType.ProcedureCodeUplinkNASTransport:
-			ngapMsg := initiatingMessage.Value.UplinkNASTransport
-			if ngapMsg == nil {
-				logger.NgapLog.Errorln("UplinkNasTransport is nil")
-				return nil
-			}
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeHandoverCancel:
-			ngapMsg := initiatingMessage.Value.HandoverCancel
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeUEContextReleaseRequest:
-			ngapMsg := initiatingMessage.Value.UEContextReleaseRequest
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeNASNonDeliveryIndication:
-			ngapMsg := initiatingMessage.Value.NASNonDeliveryIndication
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeLocationReportingFailureIndication:
-		case ngapType.ProcedureCodeErrorIndication:
-		case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
-			ngapMsg := initiatingMessage.Value.UERadioCapabilityInfoIndication
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeHandoverNotification:
-			ngapMsg := initiatingMessage.Value.HandoverNotify
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeHandoverPreparation:
-			ngapMsg := initiatingMessage.Value.HandoverRequired
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeRANConfigurationUpdate:
-		case ngapType.ProcedureCodeRRCInactiveTransitionReport:
-		case ngapType.ProcedureCodePDUSessionResourceNotify:
-			ngapMsg := initiatingMessage.Value.PDUSessionResourceNotify
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodePathSwitchRequest:
-			ngapMsg := initiatingMessage.Value.PathSwitchRequest
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDSourceAMFUENGAPID {
-					aMFUENGAPID = ie.Value.SourceAMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeLocationReport:
-		case ngapType.ProcedureCodeUplinkUEAssociatedNRPPaTransport:
-		case ngapType.ProcedureCodeUplinkRANConfigurationTransfer:
-		case ngapType.ProcedureCodePDUSessionResourceModifyIndication:
-			ngapMsg := initiatingMessage.Value.PDUSessionResourceModifyIndication
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeCellTrafficTrace:
-		case ngapType.ProcedureCodeUplinkRANStatusTransfer:
-		case ngapType.ProcedureCodeUplinkNonUEAssociatedNRPPaTransport:
+		parser := initiatingMsgParsers[initiatingMessage.ProcedureCode.Value]
+		if parser != nil {
+			return parser(&initiatingMessage.Value)
 		}
-
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
 		successfulOutcome := message.SuccessfulOutcome
 		if successfulOutcome == nil {
 			logger.NgapLog.Errorln("successfulOutcome is nil")
 			return nil
 		}
-
-		switch successfulOutcome.ProcedureCode.Value {
-		case ngapType.ProcedureCodeNGReset:
-		case ngapType.ProcedureCodeUEContextRelease:
-			ngapMsg := successfulOutcome.Value.UEContextReleaseComplete
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodePDUSessionResourceRelease:
-			ngapMsg := successfulOutcome.Value.PDUSessionResourceReleaseResponse
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeUERadioCapabilityCheck:
-		case ngapType.ProcedureCodeAMFConfigurationUpdate:
-		case ngapType.ProcedureCodeInitialContextSetup:
-			ngapMsg := successfulOutcome.Value.InitialContextSetupResponse
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeUEContextModification:
-			ngapMsg := successfulOutcome.Value.UEContextModificationResponse
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodePDUSessionResourceSetup:
-			ngapMsg := successfulOutcome.Value.PDUSessionResourceSetupResponse
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodePDUSessionResourceModify:
-			ngapMsg := successfulOutcome.Value.PDUSessionResourceModifyResponse
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			ngapMsg := successfulOutcome.Value.HandoverRequestAcknowledge
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
+		parser := successMsgParsers[successfulOutcome.ProcedureCode.Value]
+		if parser != nil {
+			return parser(&successfulOutcome.Value)
 		}
-
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		unsuccessfulOutcome := message.UnsuccessfulOutcome
 		if unsuccessfulOutcome == nil {
 			logger.NgapLog.Errorln("unsuccessfulOutcome is nil")
 			return nil
 		}
-		switch unsuccessfulOutcome.ProcedureCode.Value {
-		case ngapType.ProcedureCodeAMFConfigurationUpdate:
-		case ngapType.ProcedureCodeInitialContextSetup:
-			ngapMsg := unsuccessfulOutcome.Value.InitialContextSetupFailure
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeUEContextModification:
-			ngapMsg := unsuccessfulOutcome.Value.UEContextModificationFailure
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
-
-		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			ngapMsg := unsuccessfulOutcome.Value.HandoverFailure
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
-					aMFUENGAPID = ie.Value.AMFUENGAPID
-				}
-			}
+		parser := unsuccessMsgParsers[unsuccessfulOutcome.ProcedureCode.Value]
+		if parser != nil {
+			return parser(&unsuccessfulOutcome.Value)
 		}
 	}
 	return aMFUENGAPID
+}
+
+func initialUeMsgUplinkNASTransport(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.UplinkNASTransport
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgHandoverCancel(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.HandoverCancel
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgUEContextReleaseRequest(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.UEContextReleaseRequest
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgNASNonDeliveryIndication(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.NASNonDeliveryIndication
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgUERadioCapabilityInfoIndication(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.UERadioCapabilityInfoIndication
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgHandoverNotify(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.HandoverNotify
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgHandoverRequired(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.HandoverRequired
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgPDUSessionResourceNotify(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.PDUSessionResourceNotify
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgPathSwitchRequest(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.PathSwitchRequest
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDSourceAMFUENGAPID {
+			return ie.Value.SourceAMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func initialUeMsgPDUSessionResourceModifyIndication(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID {
+	msg := val.PDUSessionResourceModifyIndication
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgUEContextReleaseComplete(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.UEContextReleaseComplete
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgPDUSessionResourceReleaseResponse(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.PDUSessionResourceReleaseResponse
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgInitialContextSetupResponse(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.InitialContextSetupResponse
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgUEContextModificationResponse(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.UEContextModificationResponse
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgPDUSessionResourceSetupResponse(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.PDUSessionResourceSetupResponse
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgPDUSessionResourceModifyResponse(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.PDUSessionResourceModifyResponse
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func successMsgHandoverRequestAcknowledge(val *ngapType.SuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.HandoverRequestAcknowledge
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func unsuccessMsgInitialContextSetupFailure(val *ngapType.UnsuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.InitialContextSetupFailure
+	if msg == nil {
+		logger.NgapLog.Errorln("InitialContextSetupFailure is nil")
+		return nil
+	}
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func unsuccessMsgUEContextModificationFailure(val *ngapType.UnsuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.UEContextModificationFailure
+	if msg == nil {
+		logger.NgapLog.Errorln("UEContextModificationFailure is nil")
+		return nil
+	}
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
+}
+
+func unsuccessMsgHandoverFailure(val *ngapType.UnsuccessfulOutcomeValue) *ngapType.AMFUENGAPID {
+	msg := val.HandoverFailure
+	if msg == nil {
+		logger.NgapLog.Errorln("HandoverFailure is nil")
+		return nil
+	}
+	for _, ie := range msg.ProtocolIEs.List {
+		if ie.Id.Value == ngapType.ProtocolIEIDAMFUENGAPID {
+			return ie.Value.AMFUENGAPID
+		}
+	}
+	return nil
 }
