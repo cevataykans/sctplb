@@ -202,7 +202,8 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler SCTPHandler) 
 				logger.SctpLog.Debugf("read %d bytes", n)
 				logger.SctpLog.Debugf("packet content: %+v", hex.Dump(buf[:n]))
 
-				handler.HandleMessage(conn, buf[:n])
+				// lets see if this would improve the latencies ...
+				go handler.HandleMessage(conn, buf[:n])
 			}
 		}
 	}()

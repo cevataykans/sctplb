@@ -98,33 +98,24 @@ func (b *GrpcServer) readFromServer() {
 			} else if response.Msgtype == gClient.MsgType_REDIRECT_MSG {
 				var found bool
 				ctx := context.Sctplb_Self()
+				ctx.RLock()
 				for _, instance := range ctx.Backends {
 					b1 := instance.(*GrpcServer)
-					if b1.address == response.RedirectId {
-						if !b1.state {
-							logger.GrpcLog.Infoln("backend state is not in READY state, so not forwarding redirected Msg")
-						} else {
-							ran, ok := ctx.RanFindByGnbId(response.GnbId)
-							if !ok {
-								logger.RanLog.Errorln("can not find any RAN with id", response.GnbId)
-							}
-							err = b1.Send(response.Msg, false, ran)
-							//t := gClient.SctplbMessage{}
-							//t.VerboseMsg = "Hello From gNB Message !"
-							//t.Msgtype = gClient.MsgType_GNB_MSG
-							//t.SctplbId = os.Getenv("HOSTNAME")
-							//t.Msg = response.Msg
-							//t.GnbId = response.GnbId
-							//err := b1.stream.Send(&t)
-							if err != nil {
-								logger.GrpcLog.Infoln("error forwarding msg")
-							}
-							logger.GrpcLog.Infoln("successfully forwarded msg to correct AMF")
-							found = true
+					if b1.address == response.RedirectId && b1.state {
+						ran, ok := ctx.RanFindByGnbId(response.GnbId)
+						if !ok {
+							logger.RanLog.Errorln("can not find any RAN with id", response.GnbId)
 						}
+						err = b1.Send(response.Msg, false, ran)
+						if err != nil {
+							logger.GrpcLog.Infoln("error forwarding msg")
+						}
+						logger.GrpcLog.Infoln("successfully forwarded msg to correct AMF")
+						found = true
 						break
 					}
 				}
+				ctx.RUnlock()
 				if !found {
 					logger.GrpcLog.Infof("dropping redirected message as backend ip [%v] is not exist", response.RedirectId)
 				}
