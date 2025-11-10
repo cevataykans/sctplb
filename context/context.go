@@ -145,11 +145,11 @@ func (context *SctplbContext) NFLength() int {
 }
 
 func (context *SctplbContext) RLock() {
-	mutex.Lock()
+	mutex.RLock()
 }
 
 func (context *SctplbContext) RUnlock() {
-	mutex.Lock()
+	mutex.RUnlock()
 }
 
 func (context *SctplbContext) Lock() {
