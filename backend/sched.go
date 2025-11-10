@@ -105,7 +105,7 @@ func deleteBackendNF(b context.NF) {
 	}
 }
 
-func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
+func dispatchMessage(conn net.Conn, msg []byte) {
 	// add this message for one of the client
 	// select server who can handle this message.. round robin
 	// add message in the server queue
@@ -113,21 +113,11 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 
 	// Implement rate limit per gNb here
 	// implement per site rate limit here
-	var peer *SctpConnections
-	p, ok := connections.Load(conn)
-	if !ok {
-		logger.SctpLog.Infoln("notification for unknown connection")
-		return
-	} else {
-		peer = p.(*SctpConnections)
-		logger.SctpLog.Infoln("handle SCTP Notification from peer", peer.address)
-	}
 	ctx := context.Sctplb_Self()
-	ctx.Lock()
-	defer ctx.Unlock()
+	ctx.RLock()
+	defer ctx.RUnlock()
 	ran, _ := ctx.RanFindByConn(conn)
 	if len(msg) == 0 {
-		logger.SctpLog.Infof("send Gnb connection [%v] close message to all AMF Instances", peer.address)
 		if ctx.Backends != nil && ctx.NFLength() > 0 {
 			var i int
 			for ; i < ctx.NFLength(); i++ {
