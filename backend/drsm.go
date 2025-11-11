@@ -2,15 +2,16 @@ package backend
 
 import (
 	"fmt"
+	"github.com/omec-project/ngap"
 	"github.com/omec-project/ngap/logger"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/sctplb/context"
-	"github.com/omec-project/util/drsm"
-	"os"
+	"sync"
+	//"github.com/omec-project/util/drsm"
 )
 
 var (
-	drsmClient drsm.DrsmInterface
+	//drsmClient drsm.DrsmInterface
 
 	initiatingMsgParsers = map[int64]func(val *ngapType.InitiatingMessageValue) *ngapType.AMFUENGAPID{
 		ngapType.ProcedureCodeUplinkNASTransport:                 initialUeMsgUplinkNASTransport,
@@ -40,14 +41,42 @@ var (
 		ngapType.ProcedureCodeUEContextModification:      unsuccessMsgUEContextModificationFailure,
 		ngapType.ProcedureCodeHandoverResourceAllocation: unsuccessMsgHandoverFailure,
 	}
+
+	cacheLock = sync.RWMutex{}
+	cache     = make(map[int32]string)
 )
 
-func init() {
-	var err error = nil
-	drsmClient, err = initDrsmReadonly()
+//func init() {
+//	var err error = nil
+//	drsmClient, err = initDrsmReadonly()
+//	if err != nil {
+//		panic(err)
+//	}
+//}
+
+func tryCacheMsg(msg []byte, idPodIp string) {
+	var ngapId *ngapType.AMFUENGAPID = nil
+	ngapMsg, err := ngap.Decoder(msg)
 	if err != nil {
-		panic(err)
+		return
 	}
+	ngapId = extractAMFUENGAPID(ngapMsg)
+	if ngapId != nil {
+		placeInCache(int32(ngapId.Value), idPodIp)
+	}
+}
+
+func placeInCache(ngapIDVal int32, idPodIp string) {
+	cacheLock.Lock()
+	cache[ngapIDVal] = idPodIp
+	cacheLock.Unlock()
+}
+
+func findInCache(ngapIDVal int32) string {
+	cacheLock.RLock()
+	id := cache[ngapIDVal]
+	cacheLock.RUnlock()
+	return id
 }
 
 func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGAPID) (Backend, error) {
@@ -55,19 +84,17 @@ func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGA
 		return nil, fmt.Errorf("ngapId is nil")
 	}
 
-	id, err := drsmClient.FindOwnerInt32ID(int32(ngapId.Value))
-	if err != nil {
-		return nil, err
+	//id, err := drsmClient.FindOwnerInt32ID(int32(ngapId.Value))
+	idPodIp := findInCache(int32(ngapId.Value))
+	if idPodIp == "" {
+		return nil, fmt.Errorf("ngapId not found in cache")
 	}
-	if id == nil {
-		return nil, fmt.Errorf("ngapId not found by DRSM")
-	}
-	logger.NgapLog.Infoln("Found backend with id:", id)
+	logger.NgapLog.Infoln("Found backend with id:", idPodIp)
 
 	for _, instance := range ctx.Backends {
 		b1 := instance.(*GrpcServer)
 		// AMF sets RedirectID as PodIp
-		if b1.address != id.PodIp {
+		if b1.address != idPodIp {
 			continue
 		}
 
@@ -80,31 +107,31 @@ func findBackendWithNGAPID(ctx *context.SctplbContext, ngapId *ngapType.AMFUENGA
 	return nil, fmt.Errorf("backend not found")
 }
 
-func initDrsmReadonly() (drsm.DrsmInterface, error) {
-	podname := os.Getenv("HOSTNAME")
-	podip := os.Getenv("POD_IP")
-
-	// The LB doesn't need a unique NFID like AMF does
-	lbPodId := drsm.PodId{
-		PodName:     podname,
-		PodInstance: "sctplb-load-balancer",
-		PodIp:       podip,
-	}
-
-	dbUrl := "mongodb://mongodb-arbiter-headless"
-	db := drsm.DbInfo{
-		Url:  dbUrl,
-		Name: "sdcore_amf",
-	}
-
-	// Use Demux mode (read-only)
-	opt := &drsm.Options{
-		ResIdSize: 24,
-		Mode:      drsm.ResourceDemux,
-	}
-
-	return drsm.InitDRSM("amfid", lbPodId, db, opt)
-}
+//func initDrsmReadonly() (drsm.DrsmInterface, error) {
+//	podname := os.Getenv("HOSTNAME")
+//	podip := os.Getenv("POD_IP")
+//
+//	// The LB doesn't need a unique NFID like AMF does
+//	lbPodId := drsm.PodId{
+//		PodName:     podname,
+//		PodInstance: "sctplb-load-balancer",
+//		PodIp:       podip,
+//	}
+//
+//	dbUrl := "mongodb://mongodb-arbiter-headless"
+//	db := drsm.DbInfo{
+//		Url:  dbUrl,
+//		Name: "sdcore_amf",
+//	}
+//
+//	// Use Demux mode (read-only)
+//	opt := &drsm.Options{
+//		ResIdSize: 24,
+//		Mode:      drsm.ResourceDemux,
+//	}
+//
+//	return drsm.InitDRSM("amfid", lbPodId, db, opt)
+//}
 
 // Taken and adapted from ngap/handler.go
 func extractAMFUENGAPID(message *ngapType.NGAPPDU) *ngapType.AMFUENGAPID {

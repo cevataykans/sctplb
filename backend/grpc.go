@@ -104,18 +104,16 @@ func (b *GrpcServer) readFromServer() {
 						if !b1.state {
 							logger.GrpcLog.Infoln("backend state is not in READY state, so not forwarding redirected Msg")
 						} else {
+
+							// Cache logic start
+							tryCacheMsg(response.Msg, b1.address)
+							// Cache logic end
+
 							ran, ok := ctx.RanFindByGnbId(response.GnbId)
 							if !ok {
 								logger.RanLog.Errorln("can not find any RAN with id", response.GnbId)
 							}
 							err = b1.Send(response.Msg, false, ran)
-							//t := gClient.SctplbMessage{}
-							//t.VerboseMsg = "Hello From gNB Message !"
-							//t.Msgtype = gClient.MsgType_GNB_MSG
-							//t.SctplbId = os.Getenv("HOSTNAME")
-							//t.Msg = response.Msg
-							//t.GnbId = response.GnbId
-							//err := b1.stream.Send(&t)
 							if err != nil {
 								logger.GrpcLog.Infoln("error forwarding msg")
 							}
@@ -144,7 +142,12 @@ func (b *GrpcServer) readFromServer() {
 					ran, _ = context.Sctplb_Self().RanFindByGnbId(response.GnbId)
 				}
 				if ran != nil {
-					_, err := ran.Conn.Write(response.Msg)
+
+					// Cache logic start
+					tryCacheMsg(response.Msg, b.address)
+					// Cache logic end
+
+					_, err = ran.Conn.Write(response.Msg)
 					if err != nil {
 						logger.RanLog.Infof("err %+v", err)
 					}
