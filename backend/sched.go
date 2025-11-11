@@ -142,6 +142,8 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 			logger.SctpLog.Errorln("no AMF Connections")
 		}
 		context.Sctplb_Self().DeleteRan(conn)
+		// cleanup cache for benchmarking
+		clearCache()
 		return
 	}
 	if ran == nil {

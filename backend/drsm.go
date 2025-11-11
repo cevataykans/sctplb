@@ -54,6 +54,14 @@ var (
 //	}
 //}
 
+func clearCache() {
+	cacheLock.Lock()
+	for k := range cache {
+		delete(cache, k)
+	}
+	cacheLock.Unlock()
+}
+
 func tryCacheMsg(msg []byte, idPodIp string) {
 	var ngapId *ngapType.AMFUENGAPID = nil
 	ngapMsg, err := ngap.Decoder(msg)
