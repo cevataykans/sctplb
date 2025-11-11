@@ -143,23 +143,26 @@ func dispatchMessage(conn net.Conn, msg []byte) {
 		return
 	}
 
-	var ngapId *ngapType.AMFUENGAPID = nil
-	ngapMsg, err := ngap.Decoder(msg)
-	if err != nil {
-		ran.Log.Errorf("NGAP decode error: %+v", err)
-		logger.SctpLog.Infoln("dispatchLb, decode message error")
-	} else {
-		ngapId = extractAMFUENGAPID(ngapMsg)
-	}
-
-	drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
-	if err == nil {
-		// send msg to the returned backend
-		err = drsmBackend.Send(msg, false, ran)
+	// Only lookup cache if we have more than 1 AMF
+	if ctx.NFLength() > 1 {
+		var ngapId *ngapType.AMFUENGAPID = nil
+		ngapMsg, err := ngap.Decoder(msg)
 		if err != nil {
-			logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
+			ran.Log.Errorf("NGAP decode error: %+v", err)
+			logger.SctpLog.Infoln("dispatchLb, decode message error")
+		} else {
+			ngapId = extractAMFUENGAPID(ngapMsg)
 		}
-		return
+
+		drsmBackend, err := findBackendWithNGAPID(ctx, ngapId)
+		if err == nil {
+			// send msg to the returned backend
+			err = drsmBackend.Send(msg, false, ran)
+			if err != nil {
+				logger.SctpLog.Errorln("can not send to backend returned by drsm:", err)
+			}
+			return
+		}
 	}
 
 	var i int
