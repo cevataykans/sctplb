@@ -142,11 +142,6 @@ func (b *GrpcServer) readFromServer() {
 					ran, _ = context.Sctplb_Self().RanFindByGnbId(response.GnbId)
 				}
 				if ran != nil {
-
-					// Cache logic start
-					tryCacheMsg(response.Msg, b.address)
-					// Cache logic end
-
 					_, err = ran.Conn.Write(response.Msg)
 					if err != nil {
 						logger.RanLog.Infof("err %+v", err)
