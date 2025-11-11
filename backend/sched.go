@@ -24,8 +24,8 @@ type Backend interface {
 // returns the backendNF using RoundRobin algorithm
 func RoundRobin() Backend {
 	ctx := context.Sctplb_Self()
-	ctx.Lock()
-	defer ctx.Unlock()
+	ctx.RLock()
+	defer ctx.RUnlock()
 	length := ctx.NFLength()
 
 	if length <= 0 {
@@ -116,8 +116,8 @@ func dispatchMessage(conn net.Conn, msg []byte) { //*gClient.Message) {
 	ctx := context.Sctplb_Self()
 	ran, _ := ctx.RanFindByConn(conn)
 	if len(msg) == 0 {
-		ctx.Lock()
-		defer ctx.Unlock()
+		ctx.RLock()
+		defer ctx.RUnlock()
 		if ctx.Backends != nil && ctx.NFLength() > 0 {
 			var i int
 			for ; i < ctx.NFLength(); i++ {

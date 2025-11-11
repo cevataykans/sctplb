@@ -12,7 +12,7 @@ var (
 )
 
 func init() {
-	ranMsgs = make(chan *task, 1024)
+	ranMsgs = make(chan *task)
 }
 
 type task struct {

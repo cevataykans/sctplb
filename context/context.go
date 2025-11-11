@@ -25,7 +25,7 @@ type SctplbContext struct {
 
 var (
 	nfNum int
-	mutex sync.Mutex
+	mutex sync.RWMutex
 )
 
 type Ran struct {
@@ -142,6 +142,14 @@ func (context *SctplbContext) AddNF(target NF) {
 
 func (context *SctplbContext) NFLength() int {
 	return nfNum
+}
+
+func (context *SctplbContext) RLock() {
+	mutex.RLock()
+}
+
+func (context *SctplbContext) RUnlock() {
+	mutex.RUnlock()
 }
 
 func (context *SctplbContext) Lock() {
