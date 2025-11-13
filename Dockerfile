@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-FROM golang:1.24.4-bookworm AS builder
-
+FROM golang:1.25.4-bookworm AS builder
+ENV GOEXPERIMENT="greenteagc"
 WORKDIR $GOPATH/src/sctplb
 COPY . .
 RUN CGO_ENABLED=0 go install
